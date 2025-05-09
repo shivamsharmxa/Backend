@@ -5,7 +5,7 @@ const notificationSchema = new mongoose.Schema(
     type: {
       type: String,
       required: true,
-      enum: ["FOLLOW_REQUEST", "FOLLOW_ACCEPTED", "MESSAGE"],
+      enum: ["FOLLOW_REQUEST", "FOLLOW_ACCEPTED", "MESSAGE", "NEW_JOB"],
     },
     sender: {
       type: mongoose.Schema.Types.ObjectId,
@@ -25,6 +25,10 @@ const notificationSchema = new mongoose.Schema(
       type: String,
       enum: ["pending", "accepted", "rejected"],
       default: "pending",
+    },
+    jobId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Job",
     },
   },
   { timestamps: true }

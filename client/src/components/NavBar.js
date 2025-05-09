@@ -35,36 +35,85 @@ const NavBar = () => {
 
     // Join user's room
     newSocket.emit("joinUser", user._id);
+    console.log("Joined socket room for user:", user._id);
 
     // Listen for notifications
     newSocket.on("notification", (notification) => {
+      console.log("Received notification:", notification);
+
       if (notification.type === "FOLLOW_REQUEST") {
-        setNotifications((prev) => [
-          {
-            _id: notification.notificationId,
-            type: notification.type,
-            sender: {
-              _id: notification.senderId,
-              username: notification.senderName,
-            },
-            status: "pending",
-          },
-          ...prev,
-        ]);
-        playNotificationSound();
-        toast.success(`${notification.senderName} wants to follow you!`);
+        handleFollowRequest(notification);
       } else if (notification.type === "FOLLOW_ACCEPTED") {
-        playNotificationSound();
-        toast.success(
-          `${notification.accepterName} accepted your follow request!`
-        );
+        handleFollowAccepted(notification);
+      } else if (notification.type === "NEW_JOB") {
+        handleJobNotification(notification);
       }
     });
 
+    // Handle connection events
+    newSocket.on("connect", () => {
+      console.log("Socket connected");
+    });
+
+    newSocket.on("connect_error", (error) => {
+      console.error("Socket connection error:", error);
+    });
+
     return () => {
-      if (newSocket) newSocket.disconnect();
+      if (newSocket) {
+        console.log("Disconnecting socket");
+        newSocket.disconnect();
+      }
     };
   }, [user]);
+
+  const handleFollowRequest = (notification) => {
+    setNotifications((prev) => [
+      {
+        _id: notification.notificationId,
+        type: notification.type,
+        sender: {
+          _id: notification.senderId,
+          username: notification.senderName,
+        },
+        status: "pending",
+      },
+      ...prev,
+    ]);
+    playNotificationSound();
+    toast.success(`${notification.senderName} wants to follow you!`);
+  };
+
+  const handleFollowAccepted = (notification) => {
+    playNotificationSound();
+    toast.success(`${notification.accepterName} accepted your follow request!`);
+  };
+
+  const handleJobNotification = (notification) => {
+    console.log("Processing job notification:", notification);
+    try {
+      setNotifications((prev) => [
+        {
+          _id: notification.notificationId,
+          type: notification.type,
+          sender: {
+            _id: notification.senderId,
+            username: notification.senderName,
+          },
+          jobId: notification.jobId,
+          jobTitle: notification.jobTitle,
+          company: notification.company,
+        },
+        ...prev,
+      ]);
+      playNotificationSound();
+      toast.success(
+        `${notification.senderName} posted a new job: ${notification.jobTitle} at ${notification.company}`
+      );
+    } catch (error) {
+      console.error("Error processing job notification:", error);
+    }
+  };
 
   const fetchNotifications = async () => {
     try {
@@ -141,6 +190,12 @@ const NavBar = () => {
           </div>
 
           <div className="flex items-center space-x-4">
+            <button
+              onClick={() => navigate("/post-job")}
+              className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
+            >
+              Post Job
+            </button>
             <div className="relative">
               <button
                 onClick={() => setShowNotifications(!showNotifications)}
@@ -182,34 +237,62 @@ const NavBar = () => {
                           key={notification._id}
                           className="px-4 py-2 hover:bg-gray-50 border-b last:border-b-0"
                         >
-                          <p className="text-sm text-gray-800">
-                            <span className="font-semibold">{senderName}</span>{" "}
-                            wants to follow you
-                          </p>
-                          <div className="mt-2 flex space-x-2">
-                            <button
-                              onClick={() =>
-                                handleNotificationAction(
-                                  notification._id,
-                                  "accept"
-                                )
-                              }
-                              className="px-3 py-1 bg-blue-500 text-white text-sm rounded hover:bg-blue-600"
-                            >
-                              Accept
-                            </button>
-                            <button
-                              onClick={() =>
-                                handleNotificationAction(
-                                  notification._id,
-                                  "reject"
-                                )
-                              }
-                              className="px-3 py-1 bg-gray-200 text-gray-700 text-sm rounded hover:bg-gray-300"
-                            >
-                              Reject
-                            </button>
-                          </div>
+                          {notification.type === "FOLLOW_REQUEST" && (
+                            <>
+                              <p className="text-sm text-gray-800">
+                                <span className="font-semibold">
+                                  {senderName}
+                                </span>{" "}
+                                wants to follow you
+                              </p>
+                              <div className="mt-2 flex space-x-2">
+                                <button
+                                  onClick={() =>
+                                    handleNotificationAction(
+                                      notification._id,
+                                      "accept"
+                                    )
+                                  }
+                                  className="px-3 py-1 bg-blue-500 text-white text-xs rounded hover:bg-blue-600"
+                                >
+                                  Accept
+                                </button>
+                                <button
+                                  onClick={() =>
+                                    handleNotificationAction(
+                                      notification._id,
+                                      "reject"
+                                    )
+                                  }
+                                  className="px-3 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600"
+                                >
+                                  Reject
+                                </button>
+                              </div>
+                            </>
+                          )}
+                          {notification.type === "NEW_JOB" && (
+                            <>
+                              <p className="text-sm text-gray-800">
+                                <span className="font-semibold">
+                                  {senderName}
+                                </span>{" "}
+                                posted a new job: {notification.jobTitle} at{" "}
+                                {notification.company}
+                              </p>
+                              <div className="mt-2">
+                                <button
+                                  onClick={() => {
+                                    navigate(`/jobs/${notification.jobId}`);
+                                    setShowNotifications(false);
+                                  }}
+                                  className="px-3 py-1 bg-blue-500 text-white text-xs rounded hover:bg-blue-600"
+                                >
+                                  View Job
+                                </button>
+                              </div>
+                            </>
+                          )}
                         </div>
                       );
                     })

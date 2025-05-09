@@ -1,4 +1,4 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
 const {
   createJob,
@@ -6,29 +6,30 @@ const {
   getJob,
   updateJob,
   deleteJob,
-  applyForJob
-} = require('../controllers/jobController');
+  applyForJob,
+} = require("../controllers/jobController");
+const { authMiddleware } = require("../middleware/authMiddleware");
 
-// Fake auth middleware for now
-const protect = (req, res, next) => {
-  // Fake user for testing
-  req.user = {
-    _id: '6614f3051be0df476e257f08', // Replace with valid ObjectId from User collection
-    name: 'Test User',
-    email: 'test@example.com'
-  };
-  next();
+// Add error handling middleware
+const errorHandler = (err, req, res, next) => {
+  console.error("Job Route Error:", err);
+  res.status(err.status || 500).json({
+    message: err.message || "Internal Server Error",
+    stack: process.env.NODE_ENV === "development" ? err.stack : undefined,
+  });
 };
 
-router.route('/')
-  .post(protect, createJob)
-  .get(getJobs);
+router.route("/").post(authMiddleware, createJob).get(getJobs);
 
-router.route('/:id')
+router
+  .route("/:id")
   .get(getJob)
-  .put(protect, updateJob)
-  .delete(protect, deleteJob);
+  .put(authMiddleware, updateJob)
+  .delete(authMiddleware, deleteJob);
 
-router.post('/:id/apply', protect, applyForJob);
+router.post("/:id/apply", authMiddleware, applyForJob);
+
+// Apply error handling middleware
+router.use(errorHandler);
 
 module.exports = router;
